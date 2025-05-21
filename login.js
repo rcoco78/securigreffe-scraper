@@ -27,6 +27,9 @@ async function getExistingPdfNames() {
 }
 
 async function loginToSecurigreffe() {
+    if (!process.env.SECURIGREFFE_LOGIN || !process.env.SECURIGREFFE_PASSWORD) {
+        throw new Error('Les variables d\'environnement SECURIGREFFE_LOGIN et/ou SECURIGREFFE_PASSWORD ne sont pas définies ou sont vides.');
+    }
     let browser = null;
     // Récupérer la liste des PDF déjà présents dans le Sheets
     const existingPdfs = await getExistingPdfNames();
