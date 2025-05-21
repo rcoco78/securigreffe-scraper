@@ -9,6 +9,11 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const MAX_PARALLEL = 4; // Nombre de sous-dossiers traités en parallèle
 
+// --- AJOUT POUR DEBUG GITHUB ACTIONS ---
+process.env.SECURIGREFFE_LOGIN = 'nicolas.pastor';
+process.env.SECURIGREFFE_PASSWORD = 'Lefaucheux72!';
+// --- FIN AJOUT ---
+
 const WEBHOOK_URL_1 = process.env.WEBHOOK_URL_1;
 const WEBHOOK_URL_2 = process.env.WEBHOOK_URL_2;
 
