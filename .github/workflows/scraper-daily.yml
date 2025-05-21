@@ -22,4 +22,5 @@ jobs:
         env:
           LOGIN: ${{ secrets.SECURIGREFFE_LOGIN }}
           PASSWORD: ${{ secrets.SECURIGREFFE_PASSWORD }}
-          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }} 
+          WEBHOOK_URL_1: ${{ secrets.WEBHOOK_URL_1 }}
+          WEBHOOK_URL_2: ${{ secrets.WEBHOOK_URL_2 }} 
