@@ -9,11 +9,13 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const MAX_PARALLEL = 4; // Nombre de sous-dossiers traités en parallèle
 
-const WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwUDSKS8eP-WiTzlJk0_W8a8tBWjmq2UT9_XBSySlaud4DRQgo5787_Z-lUNGNHG2wc/exec';
+const WEBHOOK_URL_1 = process.env.WEBHOOK_URL_1;
+const WEBHOOK_URL_2 = process.env.WEBHOOK_URL_2;
+
+const SHEETS_GET_URL = process.env.SHEETS_GET_URL;
 
 // Fonction pour récupérer les PDF déjà présents dans le Sheets
 async function getExistingPdfNames() {
-    const SHEETS_GET_URL = 'https://script.google.com/macros/s/AKfycbzuEnmbDT11nqjBaiqyThO0mGeTxjKsYrFzBDTNNJDkhSfU1R0SfmsoWGjS-N1NBGs4/exec'; // Remplace par ton URL GET
     try {
         const res = await fetch(SHEETS_GET_URL);
         const data = await res.json();
@@ -221,16 +223,19 @@ loginToSecurigreffe().catch(error => {
 });
 
 async function sendToWebhook(data) {
-    try {
-        const res = await fetch(WEBHOOK_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        if (!res.ok) {
-            console.log('Erreur lors de l\'envoi au webhook:', res.status, await res.text());
+    for (const url of [WEBHOOK_URL_1, WEBHOOK_URL_2]) {
+        if (!url) continue;
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (!res.ok) {
+                console.log(`Erreur lors de l'envoi au webhook (${url}):`, res.status, await res.text());
+            }
+        } catch (e) {
+            console.log(`Erreur lors de l'envoi au webhook (${url}):`, e.message);
         }
-    } catch (e) {
-        console.log('Erreur lors de l\'envoi au webhook:', e.message);
     }
 } 
