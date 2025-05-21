@@ -1,0 +1,25 @@
+name: Scraper Securigreffe quotidien
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # Tous les jours à 3h du matin UTC
+  workflow_dispatch:
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v3
+      - name: Installation de Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      - name: Installation des dépendances
+        run: npm install
+      - name: Lancer le script de scraping
+        run: node login.js
+        env:
+          LOGIN: ${{ secrets.SECURIGREFFE_LOGIN }}
+          PASSWORD: ${{ secrets.SECURIGREFFE_PASSWORD }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }} 
