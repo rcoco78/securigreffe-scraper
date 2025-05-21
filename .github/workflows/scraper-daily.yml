@@ -14,6 +14,8 @@ jobs:
       - name: Installation des dépendances
         run: npm install
         working-directory: .
+      - name: Installer Chromium pour Puppeteer
+        run: npx puppeteer browsers install chrome
       - name: Lancer le script de scraping
         run: node login.js
         working-directory: .
