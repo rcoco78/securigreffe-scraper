@@ -15,7 +15,11 @@ if (!process.env.SECURIGREFFE_LOGIN || !process.env.SECURIGREFFE_PASSWORD) {
 }
 
 // URLs de l'API Auctionis
-const API_URL = process.env.API_URL || 'https://pp.auctionis.fr/api/public/files/securigreffe';
+if (!process.env.API_URL) {
+    console.error('❌ Erreur: La variable d\'environnement API_URL est requise');
+    process.exit(1);
+}
+const API_URL = process.env.API_URL;
 const API_GET_URL = (securigreffeId) => `${API_URL}/${securigreffeId}`;
 const API_POST_URL = API_URL;
 
