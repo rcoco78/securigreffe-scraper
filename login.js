@@ -15,9 +15,9 @@ if (!process.env.SECURIGREFFE_LOGIN || !process.env.SECURIGREFFE_PASSWORD) {
 }
 
 // URLs de l'API Auctionis
-const API_BASE_URL = 'https://pp.auctionis.fr/api/public/files/securigreffe';
-const API_GET_URL = (securigreffeId) => `${API_BASE_URL}/${securigreffeId}`;
-const API_POST_URL = API_BASE_URL;
+const API_URL = process.env.API_URL || 'https://pp.auctionis.fr/api/public/files/securigreffe';
+const API_GET_URL = (securigreffeId) => `${API_URL}/${securigreffeId}`;
+const API_POST_URL = API_URL;
 
 // Fonction pour extraire l'ID du nom du PDF
 function extractSecurigreffeId(pdfName) {

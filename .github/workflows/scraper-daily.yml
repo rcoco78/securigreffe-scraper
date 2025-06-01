@@ -21,4 +21,5 @@ jobs:
         working-directory: .
         env:
           SECURIGREFFE_LOGIN: ${{ secrets.SECURIGREFFE_LOGIN }}
-          SECURIGREFFE_PASSWORD: ${{ secrets.SECURIGREFFE_PASSWORD }} 
+          SECURIGREFFE_PASSWORD: ${{ secrets.SECURIGREFFE_PASSWORD }}
+          API_URL: ${{ secrets.API_URL }} 
