@@ -20,8 +20,5 @@ jobs:
         run: node login.js
         working-directory: .
         env:
-          LOGIN: ${{ secrets.SECURIGREFFE_LOGIN }}
-          PASSWORD: ${{ secrets.SECURIGREFFE_PASSWORD }}
-          WEBHOOK_URL_1: ${{ secrets.WEBHOOK_URL_1 }}
-          WEBHOOK_URL_2: ${{ secrets.WEBHOOK_URL_2 }}
-          SHEETS_GET_URL: ${{ secrets.SHEETS_GET_URL }} 
+          SECURIGREFFE_LOGIN: ${{ secrets.SECURIGREFFE_LOGIN }}
+          SECURIGREFFE_PASSWORD: ${{ secrets.SECURIGREFFE_PASSWORD }} 
