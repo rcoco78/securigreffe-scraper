@@ -1,6 +1,8 @@
 # Scraper Securigreffe
 
-Ce projet est un script Node.js qui automatise la récupération des documents PDF depuis Securigreffe et les envoie à l'API Auctionis.
+> 🤖 Script d'automatisation pour la récupération et le traitement des documents Securigreffe
+
+Ce projet est un script Node.js qui automatise la récupération des documents PDF depuis Securigreffe et les envoie à l'API Auctionis. Il permet de centraliser automatiquement les documents juridiques et d'éviter les doublons.
 
 ## Fonctionnalités
 
