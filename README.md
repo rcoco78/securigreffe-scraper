@@ -1,26 +1,28 @@
-# Securigreffe Scraper
+# Scraper Securigreffe
 
-Ce projet permet d'automatiser la récupération des documents PDF depuis Securigreffe et de les envoyer vers l'API Auctionis.
+Ce projet est un script Node.js qui automatise la récupération des documents PDF depuis Securigreffe et les envoie à l'API Auctionis.
 
 ## Fonctionnalités
 
 - 🔐 Connexion automatique à Securigreffe
-- 📁 Navigation automatique dans l'arborescence des dossiers
-- 📄 Détection et téléchargement des nouveaux PDFs
+- 📁 Parcours automatique des dossiers et sous-dossiers
+- 📄 Récupération des documents PDF
 - 🔄 Vérification des doublons avant envoi
-- 📤 Envoi automatique vers l'API Auctionis
+- 📤 Envoi automatique à l'API Auctionis
+- 📝 Logs détaillés avec emojis pour une meilleure lisibilité
 
 ## Prérequis
 
-- Node.js (v14 ou supérieur)
-- Un compte Securigreffe valide
-- Accès à l'API Auctionis
+- Node.js (version 18 ou supérieure)
+- npm (gestionnaire de paquets Node.js)
+- Un compte Securigreffe avec accès aux documents
+- Les identifiants d'accès à l'API Auctionis
 
 ## Installation
 
-1. Clonez le repository :
+1. Clonez ce dépôt :
 ```bash
-git clone [repository-url]
+git clone https://github.com/rcoco78/securigreffe-scraper.git
 cd securigreffe-scraper
 ```
 
@@ -33,56 +35,48 @@ npm install
 ```env
 SECURIGREFFE_LOGIN=votre_login
 SECURIGREFFE_PASSWORD=votre_password
+API_URL=url_de_l_api
 ```
 
 ## Utilisation
 
-Lancez le script :
+Pour lancer le script :
 ```bash
-node securigreffe/login.js
+node login.js
 ```
 
-Le script va :
-1. Se connecter à Securigreffe
-2. Naviguer dans le dossier "2025"
-3. Parcourir tous les sous-dossiers
-4. Détecter les nouveaux PDFs
-5. Les envoyer à l'API Auctionis
+## GitHub Actions
 
-## Structure des logs
+Le script est configuré pour s'exécuter automatiquement via GitHub Actions tous les jours à 3h du matin UTC.
 
-Les logs sont organisés de manière hiérarchique pour une meilleure lisibilité :
+Pour configurer GitHub Actions :
 
-```
-📁 Sous-dossier 1/16: [NOM_DOSSIER]
-  📂 Sous-dossier 1/1: [TYPE_DOSSIER]
-    📄 PDF 1/1: [NOM_PDF]
-      ⏭️  PDF déjà présent dans le dossier, pas d'envoi
-      ✨ Nouveau PDF détecté, envoi en cours...
-      ✅ Fichier envoyé avec succès à l'API
-```
+1. Allez dans les paramètres de votre repo GitHub
+2. Dans "Secrets and variables" > "Actions"
+3. Ajoutez les secrets suivants :
+   - `SECURIGREFFE_LOGIN` : votre identifiant Securigreffe
+   - `SECURIGREFFE_PASSWORD` : votre mot de passe Securigreffe
+   - `API_URL` : l'URL de l'API Auctionis
 
 ## Structure du projet
 
-- `securigreffe/` : Dossier principal du projet
-  - `login.js` : Script principal de scraping
-  - `package.json` : Dépendances du projet
-  - `.env` : Variables d'environnement (à créer)
+```
+securigreffe/
+├── .github/
+│   └── workflows/
+│       └── scraper-daily.yml    # Configuration GitHub Actions
+├── login.js                     # Script principal
+├── package.json                 # Dépendances et scripts
+└── README.md                    # Documentation
+```
 
-## Configuration de l'API
+## Logs
 
-L'API Auctionis est configurée avec :
-- URL de base : `https://pp.auctionis.fr/api/public/files/securigreffe`
-- ID Securigreffe fixe : `5439802`
-- Sous-dossier fixe : `HONORAIRES`
-
-## Gestion des erreurs
-
-Le script gère plusieurs types d'erreurs :
-- Échec de connexion à Securigreffe
-- PDFs non trouvés
-- Erreurs d'API
-
-## Support
-
-Pour toute question ou problème, veuillez ouvrir une issue sur GitHub.
+Le script utilise des emojis pour une meilleure lisibilité des logs :
+- 📁 : Dossier
+- 📂 : Sous-dossier
+- 📄 : Fichier PDF
+- ✅ : Succès
+- ❌ : Erreur
+- ⏭️ : Action ignorée (fichier déjà présent)
+- ✨ : Nouveau fichier détecté
