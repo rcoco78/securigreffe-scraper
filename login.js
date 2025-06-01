@@ -3,19 +3,16 @@ const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
 require('dotenv').config(); // Charge les variables d'environnement depuis .env
-// Pense à définir SECURIGREFFE_LOGIN et SECURIGREFFE_PASSWORD dans .env ou dans les secrets GitHub Actions
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const MAX_PARALLEL = 4; // Nombre de sous-dossiers traités en parallèle
 
-// --- AJOUT POUR DEBUG GITHUB ACTIONS ---
-process.env.SECURIGREFFE_LOGIN = 'nicolas.pastor';
-process.env.SECURIGREFFE_PASSWORD = 'Lefaucheux72!';
-// --- FIN AJOUT ---
-
-const WEBHOOK_URL_1 = process.env.WEBHOOK_URL_1;
-const WEBHOOK_URL_2 = process.env.WEBHOOK_URL_2;
+// Vérification des variables d'environnement requises
+if (!process.env.SECURIGREFFE_LOGIN || !process.env.SECURIGREFFE_PASSWORD) {
+    console.error('❌ Erreur: Les variables d\'environnement SECURIGREFFE_LOGIN et SECURIGREFFE_PASSWORD sont requises');
+    process.exit(1);
+}
 
 // URLs de l'API Auctionis
 const API_BASE_URL = 'https://pp.auctionis.fr/api/public/files/securigreffe';
@@ -73,9 +70,6 @@ async function getExistingPdfNamesInFolder(securigreffeId) {
 }
 
 async function loginToSecurigreffe() {
-    if (!process.env.SECURIGREFFE_LOGIN || !process.env.SECURIGREFFE_PASSWORD) {
-        throw new Error('Les variables d\'environnement SECURIGREFFE_LOGIN et/ou SECURIGREFFE_PASSWORD ne sont pas définies ou sont vides.');
-    }
     let browser = null;
     // On prépare un tableau pour stocker les résultats
     const results = [];
@@ -152,7 +146,7 @@ async function loginToSecurigreffe() {
         // Boucle sur chaque sous-dossier 1
         for (let index = 0; index < sousDossierNoms.length; index++) {
             const nom = sousDossierNoms[index];
-            console.log(`Traitement du sous-dossier ${index + 1}/${sousDossierNoms.length} : ${nom}`);
+            console.log(`\n📁 Sous-dossier ${index + 1}/${sousDossierNoms.length}: ${nom}`);
             // Rechercher dynamiquement le bon élément à chaque itération
             await page.waitForSelector(sousDossierSelector, { visible: true });
             const elements = await page.$$(sousDossierSelector);
@@ -166,7 +160,7 @@ async function loginToSecurigreffe() {
                 }
             }
             if (!found) {
-                console.log(`Sous-dossier '${nom}' non trouvé, on passe au suivant.`);
+                console.log(`  ❌ Sous-dossier '${nom}' non trouvé, on passe au suivant.`);
                 continue;
             }
             await sleep(1500);
@@ -181,7 +175,7 @@ async function loginToSecurigreffe() {
             );
             for (let idx2 = 0; idx2 < sousDossier2Noms.length; idx2++) {
                 const nom2 = sousDossier2Noms[idx2];
-                console.log(`  Traitement du sous-dossier 2 (${idx2 + 1}/${sousDossier2Noms.length}) : ${nom2}`);
+                console.log(`\n  📂 Sous-dossier ${idx2 + 1}/${sousDossier2Noms.length}: ${nom2}`);
                 // Rechercher dynamiquement le bon élément à chaque itération
                 await page.waitForSelector(sousDossier2Selector, { visible: true });
                 const elements2 = await page.$$(sousDossier2Selector);
@@ -195,7 +189,7 @@ async function loginToSecurigreffe() {
                     }
                 }
                 if (!found2) {
-                    console.log(`  Sous-dossier 2 '${nom2}' non trouvé, on passe au suivant.`);
+                    console.log(`    ❌ Sous-dossier '${nom2}' non trouvé, on passe au suivant.`);
                     continue;
                 }
                 await sleep(1200);
@@ -205,7 +199,7 @@ async function loginToSecurigreffe() {
                 let pdfNoms = await page.$$eval(pdfSelector, els => els.map(e => e.textContent.trim()).filter(n => n && n.toLowerCase().endsWith('.pdf')));
                 for (let idxPdf = 0; idxPdf < pdfNoms.length; idxPdf++) {
                     const pdfNom = pdfNoms[idxPdf];
-                    console.log(`    PDF trouvé (${idxPdf + 1}/${pdfNoms.length}) : ${pdfNom}`);
+                    console.log(`\n    📄 PDF ${idxPdf + 1}/${pdfNoms.length}: ${pdfNom}`);
                     // Cliquer sur le PDF pour obtenir l'URL
                     await page.waitForSelector(pdfSelector, { visible: true });
                     const pdfElements = await page.$$(pdfSelector);
@@ -231,8 +225,7 @@ async function loginToSecurigreffe() {
                                 url_pdf: pdfUrl,
                                 date_scraping: dateStr
                             };
-                            await sendToWebhook(data);
-                            console.log(`    Données envoyées au webhook pour : ${pdfNom}`);
+                            await sendToApi(data);
                             break;
                         }
                     }
@@ -263,7 +256,7 @@ loginToSecurigreffe().catch(error => {
     process.exit(1);
 });
 
-async function sendToWebhook(data) {
+async function sendToApi(data) {
     // securigreffe_id fixe, subfolder fixe à 'HONORAIRES'
     const securigreffeId = '5439802';
     const subfolder = 'HONORAIRES';
@@ -271,9 +264,12 @@ async function sendToWebhook(data) {
     // Récupérer la liste des fichiers déjà présents dans le dossier
     const existingPdfs = await getExistingPdfNamesInFolder(securigreffeId);
     if (existingPdfs.has(data.nom_pdf)) {
-        console.log(`PDF déjà présent dans le dossier, pas d'envoi : ${data.nom_pdf}`);
+        console.log(`      ⏭️  PDF déjà présent dans le dossier, pas d'envoi`);
         return;
     }
+
+    // Si on arrive ici, c'est que le PDF n'existe pas encore
+    console.log(`      ✨ Nouveau PDF détecté, envoi en cours...`);
 
     // Préparation des données pour l'API
     const apiData = {
@@ -285,7 +281,6 @@ async function sendToWebhook(data) {
 
     // Envoi à l'API Auctionis
     try {
-        console.log(`Envoi des données à l'API pour le dossier ${securigreffeId}...`, apiData);
         const res = await fetch(API_POST_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -294,32 +289,16 @@ async function sendToWebhook(data) {
         
         if (!res.ok) {
             const errorText = await res.text();
-            console.error(`Erreur lors de l'envoi à l'API:`, {
+            console.error(`      ❌ Erreur lors de l'envoi à l'API:`, {
                 status: res.status,
                 statusText: res.statusText,
                 body: errorText
             });
-        } else {
-            console.log(`Fichier ${data.nom_pdf} envoyé avec succès à l'API`);
+            return;
         }
+        console.log(`      ✅ Fichier envoyé avec succès à l'API`);
     } catch (e) {
-        console.error(`Erreur lors de l'envoi à l'API:`, e.message);
-    }
-
-    // Envoi aux webhooks existants si configurés
-    for (const url of [WEBHOOK_URL_1, WEBHOOK_URL_2]) {
-        if (!url) continue;
-        try {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            if (!res.ok) {
-                console.log(`Erreur lors de l'envoi au webhook (${url}):`, res.status, await res.text());
-            }
-        } catch (e) {
-            console.log(`Erreur lors de l'envoi au webhook (${url}):`, e.message);
-        }
+        console.error(`      ❌ Erreur lors de l'envoi à l'API:`, e.message);
+        return;
     }
 } 
