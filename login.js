@@ -73,6 +73,39 @@ async function getExistingPdfNamesInFolder(securigreffeId) {
     }
 }
 
+// Fonction de mapping pour déterminer le sous-dossier selon la logique métier
+function getSubfolder(dossier1, dossier2, nomPdf) {
+    const d1 = (dossier1 || '').toLowerCase();
+    const d2 = (dossier2 || '').toLowerCase();
+    const nom = (nomPdf || '').toLowerCase();
+
+    // GREFFE
+    if (
+        (d1.includes('courrier') && nom.includes('certificat') && (nom.includes('inventaire') || nom.includes('transmission') || nom.includes('jugement')))
+        || (d1.includes('jugement') && (nom.includes('décision') || nom.includes('jugement')))
+    ) {
+        return 'GREFFE';
+    }
+
+    // HONORAIRES
+    if (
+        (d1.includes('courrier') && (nom.includes('fixation de la rémunération') || nom.includes('notification') || (nom.includes('certificat') && !nom.includes('inventaire'))))
+        || (d1.includes('ordonnance du président') && nom.includes('ordonnance'))
+    ) {
+        return 'HONORAIRES';
+    }
+
+    // VENTE
+    if (
+        d1.includes('ordonnance du juge commissaire') && nom.includes('ordonnance') && nom.includes('vente')
+    ) {
+        return 'VENTE';
+    }
+
+    // Par défaut
+    return 'HONORAIRES';
+}
+
 async function loginToSecurigreffe() {
     let browser = null;
     // On prépare un tableau pour stocker les résultats
@@ -261,20 +294,30 @@ loginToSecurigreffe().catch(error => {
 });
 
 async function sendToApi(data) {
-    // securigreffe_id fixe, subfolder fixe à 'HONORAIRES'
-    const securigreffeId = '5439802';
-    const subfolder = 'HONORAIRES';
-
+    // Utilisation de l'ID Securigreffe dynamique
+    const securigreffeId = extractSecurigreffeId(data.nom_pdf);
+    if (!securigreffeId) {
+        console.log('      ❌ Impossible de déterminer l\'ID Securigreffe pour', data.nom_pdf);
+        return;
+    }
+    // Vérifier l'existence du dossier
+    const exists = await checkFolderExists(securigreffeId);
+    if (!exists) {
+        console.log(`      ❌ Dossier ${securigreffeId} inexistant chez Auctionis, fichier ignoré.`);
+        return;
+    }
+    // Déterminer le sous-dossier
+    const subfolder = getSubfolder(data.sous_dossier_1, data.sous_dossier_2, data.nom_pdf);
     // Récupérer la liste des fichiers déjà présents dans le dossier
     const existingPdfs = await getExistingPdfNamesInFolder(securigreffeId);
     if (existingPdfs.has(data.nom_pdf)) {
         console.log(`      ⏭️  PDF déjà présent dans le dossier, pas d'envoi`);
         return;
     }
-
     // Si on arrive ici, c'est que le PDF n'existe pas encore
     console.log(`      ✨ Nouveau PDF détecté, envoi en cours...`);
-
+    // Log détaillé de l'envoi
+    console.log(`[ENVOI] Fichier : ${data.nom_pdf}\n        ID Securigreffe : ${securigreffeId}\n        Sous-dossier : ${subfolder}\n        URL API : ${API_POST_URL}`);
     // Préparation des données pour l'API
     const apiData = {
         filename: data.nom_pdf,
@@ -282,7 +325,6 @@ async function sendToApi(data) {
         securigreffe_id: securigreffeId,
         subfolder: subfolder
     };
-
     // Envoi à l'API Auctionis
     try {
         const res = await fetch(API_POST_URL, {
@@ -290,7 +332,6 @@ async function sendToApi(data) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(apiData)
         });
-        
         if (!res.ok) {
             const errorText = await res.text();
             console.error(`      ❌ Erreur lors de l'envoi à l'API:`, {
