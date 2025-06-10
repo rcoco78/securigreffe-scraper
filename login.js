@@ -114,7 +114,7 @@ async function loginToSecurigreffe() {
     try {
         console.log('Lancement du navigateur...');
         browser = await puppeteer.launch({
-            headless: false,
+            headless: process.env.CI ? true : 'new',
             defaultViewport: { width: 1920, height: 1080 },
             args: [
                 '--no-sandbox',
