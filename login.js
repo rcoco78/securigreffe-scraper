@@ -114,7 +114,7 @@ async function loginToSecurigreffe() {
     try {
         console.log('Lancement du navigateur...');
         browser = await puppeteer.launch({
-            headless: 'new',
+            headless: false,
             defaultViewport: { width: 1920, height: 1080 },
             args: [
                 '--no-sandbox',
@@ -163,6 +163,30 @@ async function loginToSecurigreffe() {
                 await dossier.click();
                 trouve = true;
                 console.log("Dossier '2025' cliqué.");
+                // Scroll progressif pour charger tous les sous-dossiers
+                await page.waitForSelector('.padded', { visible: true });
+                let lastCount = 0;
+                let stableCount = 0;
+                let essais = 0;
+                while (essais < 30) { // Limite de sécurité
+                    const scrollable = await page.$('.padded');
+                    if (!scrollable) {
+                        console.log("❌ Impossible de trouver la div .scrollable");
+                        break;
+                    }
+                    await page.evaluate(el => { el.scrollBy(0, 500); }, scrollable);
+                    await sleep(500);
+                    const count = await page.$$eval('.tree-row > .name', els => els.length);
+                    console.log(`Nombre de dossiers détectés : ${count}`);
+                    if (count === lastCount) {
+                        stableCount++;
+                        if (stableCount >= 3) break;
+                    } else {
+                        stableCount = 0;
+                    }
+                    lastCount = count;
+                    essais++;
+                }
                 break;
             }
         }
@@ -176,9 +200,12 @@ async function loginToSecurigreffe() {
         // Cliquer sur chaque sous-dossier un par un (version robuste)
         console.log("Début du parcours des sous-dossiers de 2025...");
         // On récupère d'abord la liste des noms de sous-dossiers (hors '2025')
-        const sousDossierSelector = "td.col-name span";
+        const sousDossierSelector = ".tree-row > .name";
         await page.waitForSelector(sousDossierSelector, { visible: true });
-        let sousDossierNoms = await page.$$eval(sousDossierSelector, els => els.map(e => e.textContent.trim()).filter(nom => nom && nom !== '2025'));
+        let sousDossierNoms = await page.$$eval(
+            sousDossierSelector,
+            els => els.map(e => e.textContent.trim()).filter(nom => nom && nom !== '2025')
+        );
 
         // Boucle sur chaque sous-dossier 1
         for (let index = 0; index < sousDossierNoms.length; index++) {
