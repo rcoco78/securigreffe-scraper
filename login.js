@@ -114,7 +114,7 @@ async function loginToSecurigreffe() {
     try {
         console.log('Lancement du navigateur...');
         browser = await puppeteer.launch({
-            headless: process.env.CI ? true : 'new',
+            headless: "new",
             defaultViewport: { width: 1920, height: 1080 },
             args: [
                 '--no-sandbox',
@@ -123,14 +123,15 @@ async function loginToSecurigreffe() {
                 '--window-size=1920,1080'
             ],
             ignoreHTTPSErrors: true,
-            protocolTimeout: 60000
+            protocolTimeout: 120000
         });
         const page = await browser.newPage();
-        await page.setDefaultNavigationTimeout(60000);
-        await page.setDefaultTimeout(60000);
+        await page.setDefaultNavigationTimeout(120000);
+        await page.setDefaultTimeout(120000);
         console.log('Navigation vers la page de connexion...');
         await page.goto('https://securigreffe.infogreffe.fr/infogreffe/#/connect/idpwd', { waitUntil: 'networkidle0' });
-        await sleep(3000);
+        console.log('Attente après navigation (4s)...');
+        await sleep(4000);
         console.log('Remplissage des champs...');
         const loginSelector = '#loginInput';
         const passwordSelector = '#passwordInput';
@@ -148,7 +149,7 @@ async function loginToSecurigreffe() {
             page.click(buttonSelector)
         ]);
         console.log('Connexion réussie !');
-        await sleep(5000);
+        await sleep(3000);
 
         // Cliquer sur le dossier "2025"
         console.log("Recherche et clic sur le dossier '2025'...");
@@ -175,7 +176,8 @@ async function loginToSecurigreffe() {
                         break;
                     }
                     await page.evaluate(el => { el.scrollBy(0, 500); }, scrollable);
-                    await sleep(500);
+                    console.log('Attente après scroll (1s)...');
+                    await sleep(1000);
                     const count = await page.$$eval('.tree-row > .name', els => els.length);
                     console.log(`Nombre de dossiers détectés : ${count}`);
                     if (count === lastCount) {
@@ -197,6 +199,20 @@ async function loginToSecurigreffe() {
         // Attendre que les sous-dossiers s'affichent (on attend la présence d'un sous-dossier)
         await sleep(2000);
 
+        // Nouvelle étape : cliquer sur "Voir plus" tant qu'il existe
+        let voirPlusSelector = 'a[title="Afficher plus de dossier"]';
+        let clicsVoirPlus = 0;
+        while (await page.$(voirPlusSelector) !== null) {
+            console.log("➡️  Clic sur 'Voir plus' pour charger plus de dossiers...");
+            await page.evaluate((sel) => {
+                const btn = document.querySelector(sel);
+                if (btn) btn.click();
+            }, voirPlusSelector);
+            clicsVoirPlus++;
+            await sleep(2000); // attendre le chargement des nouveaux dossiers
+        }
+        console.log(`✅ Nombre de clics sur 'Voir plus' : ${clicsVoirPlus}`);
+
         // Cliquer sur chaque sous-dossier un par un (version robuste)
         console.log("Début du parcours des sous-dossiers de 2025...");
         // On récupère d'abord la liste des noms de sous-dossiers (hors '2025')
@@ -211,78 +227,115 @@ async function loginToSecurigreffe() {
         for (let index = 0; index < sousDossierNoms.length; index++) {
             const nom = sousDossierNoms[index];
             console.log(`\n📁 Sous-dossier ${index + 1}/${sousDossierNoms.length}: ${nom}`);
-            try {
-                // Rechercher dynamiquement le bon élément à chaque itération
-                await page.waitForSelector(sousDossierSelector, { visible: true });
-                const elements = await page.$$(sousDossierSelector);
-                let found = false;
-                for (const el of elements) {
-                    const text = await page.evaluate(e => e.textContent.trim(), el);
-                    if (text === nom) {
-                        await el.click();
-                        found = true;
-                        break;
+            let clicked = false;
+            let attempts = 0;
+            const maxAttempts = 3;
+            while (!clicked && attempts < maxAttempts) {
+                try {
+                    await page.waitForSelector(sousDossierSelector, { visible: true });
+                    const elements = await page.$$(sousDossierSelector);
+                    let found = false;
+                    for (const el of elements) {
+                        const text = await page.evaluate(e => e.textContent.trim(), el);
+                        if (text === nom) {
+                            await el.click();
+                            found = true;
+                            clicked = true;
+                            break;
+                        }
                     }
+                    if (!found) {
+                        console.log(`  ❌ Sous-dossier '${nom}' non trouvé à la tentative ${attempts + 1}.`);
+                        break; // inutile de réessayer si le nom n'est pas dans la liste
+                    }
+                } catch (err) {
+                    console.log(`  ⚠️  Erreur lors du clic sur '${nom}' (tentative ${attempts + 1}/${maxAttempts}): ${err.message || err}`);
+                    await sleep(1000); // petit délai avant de réessayer
                 }
-                if (!found) {
-                    console.log(`  ❌ Sous-dossier '${nom}' non trouvé, on passe au suivant.`);
-                    continue;
-                }
-                await sleep(1500);
+                attempts++;
+            }
+            if (!clicked) {
+                console.log(`  ❌ Impossible d'ouvrir le sous-dossier '${nom}' après ${maxAttempts} tentatives, on passe au suivant.`);
+                continue;
+            }
+            await sleep(1500);
 
-                // Récupérer la liste des sous-dossiers 2 à l'intérieur du sous-dossier 1
-                const sousDossier2Selector = "td.col-name span";
-                await page.waitForSelector(sousDossier2Selector, { visible: true });
-                let sousDossier2Noms = await page.$$eval(
-                    sousDossier2Selector,
-                    (els, nom1) => els.map(e => e.textContent.trim()).filter(n => n && n !== nom1),
-                    nom
-                );
-                for (let idx2 = 0; idx2 < sousDossier2Noms.length; idx2++) {
-                    const nom2 = sousDossier2Noms[idx2];
-                    console.log(`\n  📂 Sous-dossier ${idx2 + 1}/${sousDossier2Noms.length}: ${nom2}`);
-                    try {
-                        // Rechercher dynamiquement le bon élément à chaque itération
-                        await page.waitForSelector(sousDossier2Selector, { visible: true });
-                        const elements2 = await page.$$(sousDossier2Selector);
-                        let found2 = false;
-                        for (const el2 of elements2) {
-                            const text2 = await page.evaluate(e => e.textContent.trim(), el2);
-                            if (text2 === nom2) {
-                                await el2.click();
-                                found2 = true;
-                                break;
-                            }
+            // Récupérer la liste des sous-dossiers 2 à l'intérieur du sous-dossier 1
+            const sousDossier2Selector = "td.col-name span";
+            await page.waitForSelector(sousDossier2Selector, { visible: true });
+            let sousDossier2Noms = await page.$$eval(
+                sousDossier2Selector,
+                (els, nom1) => els.map(e => e.textContent.trim()).filter(n => n && n !== nom1),
+                nom
+            );
+            for (let idx2 = 0; idx2 < sousDossier2Noms.length; idx2++) {
+                const nom2 = sousDossier2Noms[idx2];
+                console.log(`\n  📂 Sous-dossier ${idx2 + 1}/${sousDossier2Noms.length}: ${nom2}`);
+                try {
+                    // Rechercher dynamiquement le bon élément à chaque itération
+                    await page.waitForSelector(sousDossier2Selector, { visible: true });
+                    const elements2 = await page.$$(sousDossier2Selector);
+                    let found2 = false;
+                    for (const el2 of elements2) {
+                        const text2 = await page.evaluate(e => e.textContent.trim(), el2);
+                        if (text2 === nom2) {
+                            await el2.click();
+                            found2 = true;
+                            break;
                         }
-                        if (!found2) {
-                            console.log(`    ❌ Sous-dossier '${nom2}' non trouvé, on passe au suivant.`);
-                            continue;
-                        }
-                        await sleep(1200);
-                        // Récupérer la liste des PDF à l'intérieur du sous-dossier 2
-                        const pdfSelector = "td.col-name span";
-                        await page.waitForSelector(pdfSelector, { visible: true });
-                        let pdfNoms = await page.$$eval(pdfSelector, els => els.map(e => e.textContent.trim()).filter(n => n && n.toLowerCase().endsWith('.pdf')));
-                        for (let idxPdf = 0; idxPdf < pdfNoms.length; idxPdf++) {
-                            const pdfNom = pdfNoms[idxPdf];
-                            console.log(`\n    📄 PDF ${idxPdf + 1}/${pdfNoms.length}: ${pdfNom}`);
-                            try {
-                                // Cliquer sur le PDF pour obtenir l'URL
-                                await page.waitForSelector(pdfSelector, { visible: true });
-                                const pdfElements = await page.$$(pdfSelector);
-                                let pdfUrl = '';
+                    }
+                    if (!found2) {
+                        console.log(`    ❌ Sous-dossier '${nom2}' non trouvé, on passe au suivant.`);
+                        continue;
+                    }
+                    await sleep(2000);
+                    // Récupérer la liste des PDF à l'intérieur du sous-dossier 2
+                    const pdfSelector = "td.col-name span";
+                    await page.waitForSelector(pdfSelector, { visible: true });
+                    let pdfNoms = await page.$$eval(pdfSelector, els => els.map(e => e.textContent.trim()).filter(n => n && n.toLowerCase().endsWith('.pdf')));
+                    for (let idxPdf = 0; idxPdf < pdfNoms.length; idxPdf++) {
+                        const pdfNom = pdfNoms[idxPdf];
+                        console.log(`\n    📄 PDF ${idxPdf + 1}/${pdfNoms.length}: ${pdfNom}`);
+                        try {
+                            // Cliquer sur le PDF pour obtenir l'URL
+                            await page.waitForSelector(pdfSelector, { visible: true });
+                            const pdfElements = await page.$$(pdfSelector);
+                            let pdfUrl = '';
+                            let retryCount = 0;
+                            const maxRetries = 3;
+                            let pdfFound = false;
+                            while (retryCount < maxRetries && !pdfFound) {
                                 for (const elPdf of pdfElements) {
                                     const textPdf = await page.evaluate(e => e.textContent.trim(), elPdf);
                                     if (textPdf === pdfNom) {
                                         await elPdf.click();
                                         await sleep(1000);
+                                        // Attente supplémentaire pour laisser le temps au PDF de charger complètement
+                                        await sleep(2000);
                                         const pages = await browser.pages();
                                         let pdfPage = pages[pages.length - 1];
                                         if (pdfPage !== page) {
                                             pdfUrl = pdfPage.url();
-                                            await pdfPage.close();
+                                            if (!pdfUrl || pdfUrl === 'about:blank') {
+                                                console.log(`      ⚠️  Impossible de récupérer l'URL du PDF, tentative ${retryCount + 1}/${maxRetries}`);
+                                                await pdfPage.close();
+                                                retryCount++;
+                                                await sleep(1000);
+                                                continue;
+                                            } else {
+                                                await pdfPage.close();
+                                                pdfFound = true;
+                                            }
                                         } else {
                                             pdfUrl = await page.url();
+                                            if (!pdfUrl || pdfUrl === 'about:blank') {
+                                                console.log(`      ⚠️  Impossible de récupérer l'URL du PDF (même onglet), tentative ${retryCount + 1}/${maxRetries}`);
+                                                retryCount++;
+                                                await sleep(1000);
+                                                continue;
+                                            } else {
+                                                pdfFound = true;
+                                            }
                                         }
                                         const dateStr = new Date().toLocaleString('fr-FR', { hour12: false });
                                         const data = {
@@ -296,26 +349,27 @@ async function loginToSecurigreffe() {
                                         break;
                                     }
                                 }
-                            } catch (errPdf) {
-                                console.error(`      ❌ Erreur lors du traitement du PDF '${pdfNom}':`, errPdf.message || errPdf);
-                                continue;
+                                if (!pdfFound) retryCount++;
                             }
+                            if (!pdfFound) {
+                                console.log(`      ❌ Abandon du PDF '${pdfNom}' après ${maxRetries} tentatives.`);
+                            }
+                        } catch (errPdf) {
+                            console.error(`      ❌ Erreur lors du traitement du PDF '${pdfNom}':`, errPdf.message || errPdf);
+                            continue;
                         }
-                        // Revenir à la liste des sous-dossiers 2
-                        await page.goBack();
-                        await sleep(1000);
-                    } catch (errSous2) {
-                        console.error(`    ❌ Erreur dans le sous-dossier 2 '${nom2}':`, errSous2.message || errSous2);
-                        continue;
                     }
+                    // Revenir à la liste des sous-dossiers 2
+                    await page.goBack();
+                    await sleep(2000);
+                } catch (errSous2) {
+                    console.error(`    ❌ Erreur dans le sous-dossier 2 '${nom2}':`, errSous2.message || errSous2);
+                    continue;
                 }
-                // Revenir à la liste des sous-dossiers 1
-                await page.goBack();
-                await sleep(1000);
-            } catch (errSous1) {
-                console.error(`  ❌ Erreur dans le sous-dossier 1 '${nom}':`, errSous1.message || errSous1);
-                continue;
             }
+            // Revenir à la liste des sous-dossiers 1
+            await page.goBack();
+            await sleep(2000);
         }
         console.log("Tous les sous-dossiers et dossiers ont été ouverts un par un.");
     } catch (error) {
