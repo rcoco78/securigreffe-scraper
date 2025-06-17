@@ -74,34 +74,41 @@ async function getExistingPdfNamesInFolder(securigreffeId) {
 }
 
 // Fonction de mapping pour déterminer le sous-dossier selon la logique métier
-function getSubfolder(dossier1, dossier2, nomPdf) {
+function getSubfolder(dossier1, dossier2, nomPdf, description = '') {
     const d1 = (dossier1 || '').toLowerCase();
     const d2 = (dossier2 || '').toLowerCase();
     const nom = (nomPdf || '').toLowerCase();
+    const desc = (description || '').toLowerCase();
 
-    // GREFFE
+    // GREFFE selon la description ou le dossier
     if (
-        (d1.includes('courrier') && nom.includes('certificat') && (nom.includes('inventaire') || nom.includes('transmission') || nom.includes('jugement')))
-        || (d1.includes('jugement') && (nom.includes('décision') || nom.includes('jugement')))
+        (d1.includes('courrier') && (
+            desc.includes('certificat de dépôt en matière rjlj - inventaire') ||
+            desc.includes('lettre transmission du jugement au chargé d\'inventaire') ||
+            desc.includes('transmission ext jugt rj')
+        )) ||
+        (d1.includes('jugement') && desc.includes('décisions (signature électronique)'))
     ) {
         return 'GREFFE';
     }
-
     // HONORAIRES
     if (
-        (d1.includes('courrier') && (nom.includes('fixation de la rémunération') || nom.includes('notification') || (nom.includes('certificat') && !nom.includes('inventaire'))))
-        || (d1.includes('ordonnance du président') && nom.includes('ordonnance'))
+        (d1.includes('courrier') && (
+            desc.includes('certificat dépôt en matière rjlj - fixation de la rémunération du chargé d\'inventaire') ||
+            desc.includes('notification d\'ordonnance - fixation de la rémunération du chargé d\'inventaire')
+        )) ||
+        (d1.includes('ordonnance du président du tae') &&
+            desc.includes('ordonnance du président du tae fixation de la rémunération du chargé d\'inventaire'))
     ) {
         return 'HONORAIRES';
     }
-
     // VENTE
     if (
-        d1.includes('ordonnance du juge commissaire') && nom.includes('ordonnance') && nom.includes('vente')
+        d1.includes('ordonnance du juge commissaire') &&
+        desc.includes('ordonnance du juge commissaire (signature électronique) - autorisation de la vente aux enchères publiques des autres biens du débiteur')
     ) {
         return 'VENTE';
     }
-
     // Par défaut
     return 'HONORAIRES';
 }
@@ -338,12 +345,34 @@ async function loginToSecurigreffe() {
                                             }
                                         }
                                         const dateStr = new Date().toLocaleString('fr-FR', { hour12: false });
+                                        // Récupérer la ligne <tr> correspondant à ce PDF
+                                        const pdfRows = await page.$$('tr');
+                                        let description = '';
+                                        for (const row of pdfRows) {
+                                            try {
+                                                const nomCell = await row.$('td.col-name span');
+                                                if (nomCell) {
+                                                    const nomCellText = await (await nomCell.getProperty('textContent')).jsonValue();
+                                                    if (nomCellText && nomCellText.trim() === pdfNom) {
+                                                        // On suppose que la description est dans la 11ème colonne (adapter si besoin)
+                                                        const descSpans = await row.$$('td.col-name span');
+                                                        if (descSpans.length > 10) {
+                                                            description = await (await descSpans[10].getProperty('textContent')).jsonValue();
+                                                            description = description.trim();
+                                                        }
+                                                        break;
+                                                    }
+                                                }
+                                            } catch (e) {}
+                                        }
+                                        console.log(`    📝 Description du PDF : ${description}`);
                                         const data = {
                                             sous_dossier_1: nom,
                                             sous_dossier_2: nom2,
                                             nom_pdf: pdfNom,
                                             url_pdf: pdfUrl,
-                                            date_scraping: dateStr
+                                            date_scraping: dateStr,
+                                            description: description
                                         };
                                         await sendToApi(data);
                                         break;
@@ -403,7 +432,8 @@ async function sendToApi(data) {
         return;
     }
     // Déterminer le sous-dossier
-    const subfolder = getSubfolder(data.sous_dossier_1, data.sous_dossier_2, data.nom_pdf);
+    const subfolder = getSubfolder(data.sous_dossier_1, data.sous_dossier_2, data.nom_pdf, data.description);
+    console.log(`      📂 Sous-dossier choisi : ${subfolder} (description : ${data.description})`);
     // Récupérer la liste des fichiers déjà présents dans le dossier
     const existingPdfs = await getExistingPdfNamesInFolder(securigreffeId);
     if (existingPdfs.has(data.nom_pdf)) {
