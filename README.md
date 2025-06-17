@@ -72,13 +72,33 @@ securigreffe/
 └── README.md                    # Documentation
 ```
 
+## Logique de classement des documents
+
+Le script classe automatiquement chaque PDF dans l'un des sous-dossiers métier suivants selon le dossier d'origine et la description du document :
+
+- **GREFFE**
+  - Documents issus du sous-dossier "courrier" dont la description contient :
+    - "Certificat de dépôt en matière RJLJ - inventaire"
+    - "Lettre transmission du jugement au chargé d'inventaire - inventaire d'une procédure de (redressement ou liquidation) judiciaire"
+    - "Transmission ext jugt rj (ou lj) - ouverture de redressement (ou lj) judiciaire sans administrateur"
+  - Documents issus du dossier "jugement" dont la description contient :
+    - "Décisions (signature électronique) - ouverture d'une procédure de redressement (ou liquidation) judiciaire"
+
+- **HONORAIRES**
+  - Documents issus du dossier "courrier" dont la description contient :
+    - "Certificat dépôt en matière RJLJ - Fixation de la rémunération du chargé d'inventaire"
+    - "Notification d'ordonnance - fixation de la rémunération du chargé d'inventaire"
+  - Documents issus du dossier "Ordonnance du président du TAE" dont la description contient :
+    - "Ordonnance du Président du TAE fixation de la rémunération du chargé d'inventaire"
+
+- **VENTE**
+  - Documents issus du dossier "ordonnance du juge commissaire" dont la description contient :
+    - "Ordonnance du juge commissaire (signature électronique) - autorisation de la vente aux enchères publiques des autres biens du débiteur"
+
+Le classement est entièrement automatisé et s'appuie sur la détection de mots-clés dans la description et le dossier d'origine.
+
 ## Logs
 
-Le script utilise des emojis pour une meilleure lisibilité des logs :
-- 📁 : Dossier
-- 📂 : Sous-dossier
-- 📄 : Fichier PDF
-- ✅ : Succès
-- ❌ : Erreur
-- ⏭️ : Action ignorée (fichier déjà présent)
-- ✨ : Nouveau fichier détecté
+Le script affiche dans les logs :
+- La description extraite pour chaque PDF
+- Le sous-dossier métier choisi (GREFFE, HONORAIRES, VENTE)
