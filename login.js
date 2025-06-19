@@ -344,26 +344,32 @@ async function loginToSecurigreffe() {
                                                 pdfFound = true;
                                             }
                                         }
-                                        const dateStr = new Date().toLocaleString('fr-FR', { hour12: false });
                                         // Récupérer la ligne <tr> correspondant à ce PDF
                                         const pdfRows = await page.$$('tr');
                                         let description = '';
                                         for (const row of pdfRows) {
                                             try {
+                                                // Récupérer le nom du PDF dans la ligne
                                                 const nomCell = await row.$('td.col-name span');
                                                 if (nomCell) {
                                                     const nomCellText = await (await nomCell.getProperty('textContent')).jsonValue();
                                                     if (nomCellText && nomCellText.trim() === pdfNom) {
-                                                        // On suppose que la description est dans la 11ème colonne (adapter si besoin)
-                                                        const descSpans = await row.$$('td.col-name span');
-                                                        if (descSpans.length > 10) {
-                                                            description = await (await descSpans[10].getProperty('textContent')).jsonValue();
-                                                            description = description.trim();
+                                                        // Chercher la description dans les td.col-name.hidden-xs-down > span
+                                                        const descSpans = await row.$$('td.col-name.hidden-xs-down > span');
+                                                        for (const span of descSpans) {
+                                                            const text = (await (await span.getProperty('textContent')).jsonValue()).trim();
+                                                            if (text && text !== pdfNom && text.length > 10) {
+                                                                description = text;
+                                                                break;
+                                                            }
                                                         }
                                                         break;
                                                     }
                                                 }
                                             } catch (e) {}
+                                        }
+                                        if (!description) {
+                                            console.warn(`    ⚠️  Aucune description trouvée pour le PDF : ${pdfNom}`);
                                         }
                                         console.log(`    📝 Description du PDF : ${description}`);
                                         const data = {
@@ -371,7 +377,7 @@ async function loginToSecurigreffe() {
                                             sous_dossier_2: nom2,
                                             nom_pdf: pdfNom,
                                             url_pdf: pdfUrl,
-                                            date_scraping: dateStr,
+                                            date_scraping: new Date().toLocaleString('fr-FR', { hour12: false }),
                                             description: description
                                         };
                                         await sendToApi(data);
