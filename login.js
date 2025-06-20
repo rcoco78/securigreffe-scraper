@@ -75,42 +75,51 @@ async function getExistingPdfNamesInFolder(securigreffeId) {
 
 // Fonction de mapping pour déterminer le sous-dossier selon la logique métier
 function getSubfolder(dossier1, dossier2, nomPdf, description = '') {
-    const d1 = (dossier1 || '').toLowerCase();
-    const d2 = (dossier2 || '').toLowerCase();
-    const nom = (nomPdf || '').toLowerCase();
-    const desc = (description || '').toLowerCase();
+    const d2 = (dossier2 || '').toLowerCase(); // "chemin"
+    const desc = (description || '').toLowerCase(); // "titre"
 
-    // GREFFE selon la description ou le dossier
-    if (
-        (d1.includes('courrier') && (
-            desc.includes('certificat de dépôt en matière rjlj - inventaire') ||
-            desc.includes('lettre transmission du jugement au chargé d\'inventaire') ||
-            desc.includes('transmission ext jugt rj')
-        )) ||
-        (d1.includes('jugement') && desc.includes('décisions (signature électronique)'))
-    ) {
-        return 'GREFFE';
+    // 🔷 Dossier GREFFE
+    if (d2.includes('courrier')) {
+        if (desc.includes('certificat de depot') && desc.includes('rjlj')) {
+            return 'GREFFE';
+        }
+        if (desc.includes('transmission du jugement') && desc.includes('inventaire')) {
+            return 'GREFFE';
+        }
+        if (desc.includes('transmission ext jugt rj') || desc.includes('transmission ext jugt lj')) {
+            return 'GREFFE';
+        }
     }
-    // HONORAIRES
-    if (
-        (d1.includes('courrier') && (
-            desc.includes('certificat dépôt en matière rjlj - fixation de la rémunération du chargé d\'inventaire') ||
-            desc.includes('notification d\'ordonnance - fixation de la rémunération du chargé d\'inventaire')
-        )) ||
-        (d1.includes('ordonnance du président du tae') &&
-            desc.includes('ordonnance du président du tae fixation de la rémunération du chargé d\'inventaire'))
-    ) {
-        return 'HONORAIRES';
+    if (d2.includes('jugement')) {
+        if (desc.includes('decision') && desc.includes('ouverture') && (desc.includes('redressement') || desc.includes('liquidation'))) {
+            return 'GREFFE';
+        }
     }
-    // VENTE
-    if (
-        d1.includes('ordonnance du juge commissaire') &&
-        desc.includes('ordonnance du juge commissaire (signature électronique) - autorisation de la vente aux enchères publiques des autres biens du débiteur')
-    ) {
-        return 'VENTE';
+
+    // 🔷 Dossier HONORAIRES
+    if (d2.includes('courrier')) {
+        if (desc.includes('certificat depot') && desc.includes('fixation de la remuneration')) {
+            return 'HONORAIRES';
+        }
+        if (desc.includes('notification d\'ordonnance') && desc.includes('remuneration')) {
+            return 'HONORAIRES';
+        }
     }
-    // Par défaut
-    return 'HONORAIRES';
+    if (d2.includes('ordonnance du president du tae')) {
+        if (desc.includes('ordonnance') && desc.includes('fixation de la remuneration')) {
+            return 'HONORAIRES';
+        }
+    }
+
+    // 🔷 Dossier VENTE
+    if (d2.includes('ordonnance du juge commissaire')) {
+        if (desc.includes('ordonnance du juge commissaire') && desc.includes('vente aux encheres')) {
+            return 'VENTE';
+        }
+    }
+
+    // Par défaut, si aucune règle ne correspond
+    return 'NON_CLASSE';
 }
 
 async function loginToSecurigreffe() {
@@ -372,6 +381,10 @@ async function loginToSecurigreffe() {
                                             console.warn(`    ⚠️  Aucune description trouvée pour le PDF : ${pdfNom}`);
                                         }
                                         console.log(`    📝 Description du PDF : ${description}`);
+
+                                        const tempSubfolder = getSubfolder(nom, nom2, pdfNom, description);
+                                        console.log(`    🗂️  Le dossier aurait dû être envoyé vers : ${tempSubfolder}`);
+
                                         const data = {
                                             sous_dossier_1: nom,
                                             sous_dossier_2: nom2,
