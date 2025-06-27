@@ -83,10 +83,13 @@ function getSubfolder(dossier1, dossier2, nomPdf, description = '') {
         if (desc.includes('certificat de depot') && desc.includes('rjlj')) {
             return 'GREFFE';
         }
+        if (desc.includes('rjlj') && desc.includes('inventaire')) {
+            return 'GREFFE';
+        }
         if (desc.includes('transmission du jugement') && desc.includes('inventaire')) {
             return 'GREFFE';
         }
-        if (desc.includes('transmission ext jugt rj') || desc.includes('transmission ext jugt lj')) {
+        if (desc.includes('transmission ext jugt')) {
             return 'GREFFE';
         }
     }
@@ -105,7 +108,7 @@ function getSubfolder(dossier1, dossier2, nomPdf, description = '') {
             return 'HONORAIRES';
         }
     }
-    if (d2.includes('ordonnance du president du tae')) {
+    if (d2.includes('ordonnance du president')) {
         if (desc.includes('ordonnance') && desc.includes('fixation de la remuneration')) {
             return 'HONORAIRES';
         }
