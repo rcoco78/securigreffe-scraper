@@ -73,10 +73,18 @@ async function getExistingPdfNamesInFolder(securigreffeId) {
     }
 }
 
-// Fonction de mapping pour déterminer le sous-dossier selon la logique métier
+function normalize(str) {
+    return (str || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // retire les accents
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 function getSubfolder(dossier1, dossier2, nomPdf, description = '') {
-    const d2 = (dossier2 || '').toLowerCase(); // "chemin"
-    const desc = (description || '').toLowerCase(); // "titre"
+    const d2 = normalize(dossier2); // "chemin"
+    const desc = normalize(description); // "titre"
 
     // 🔷 Dossier GREFFE
     if (d2.includes('courrier')) {
@@ -104,7 +112,7 @@ function getSubfolder(dossier1, dossier2, nomPdf, description = '') {
         if (desc.includes('certificat depot') && desc.includes('fixation de la remuneration')) {
             return 'HONORAIRES';
         }
-        if (desc.includes('notification d\'ordonnance') && desc.includes('remuneration')) {
+        if (desc.includes("notification d'ordonnance") && desc.includes('remuneration')) {
             return 'HONORAIRES';
         }
     }
@@ -114,9 +122,18 @@ function getSubfolder(dossier1, dossier2, nomPdf, description = '') {
         }
     }
 
-    // 🔷 Dossier VENTE
+    // 🔷 Dossier VENTE (patch accentué et variantes)
     if (d2.includes('ordonnance du juge commissaire')) {
-        if (desc.includes('ordonnance du juge commissaire') && desc.includes('vente aux encheres')) {
+        // On accepte vente aux encheres (avec ou sans accent), vente aux encheres publiques, autorisation de la vente, etc.
+        if (
+            (desc.includes('ordonnance du juge commissaire') &&
+                (
+                    desc.includes('vente aux encheres') ||
+                    desc.includes('vente aux encheres publiques') ||
+                    desc.includes('autorisation de la vente')
+                )
+            )
+        ) {
             return 'VENTE';
         }
     }
