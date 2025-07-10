@@ -473,6 +473,11 @@ async function sendToApi(data) {
     // Déterminer le sous-dossier
     const subfolder = getSubfolder(data.sous_dossier_1, data.sous_dossier_2, data.nom_pdf, data.description);
     console.log(`      📂 Sous-dossier choisi : ${subfolder} (description : ${data.description})`);
+    // Si NON_CLASSE, on n'envoie pas à l'API
+    if (subfolder === 'NON_CLASSE') {
+        console.log(`      ⏭️  Document NON_CLASSE, pas d'envoi à l'API.`);
+        return;
+    }
     // Récupérer la liste des fichiers déjà présents dans le dossier
     const existingPdfs = await getExistingPdfNamesInFolder(securigreffeId);
     if (existingPdfs.has(data.nom_pdf)) {
