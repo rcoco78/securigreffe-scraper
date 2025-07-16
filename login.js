@@ -86,6 +86,14 @@ function getSubfolder(dossier1, dossier2, nomPdf, description = '') {
     const d2 = normalize(dossier2); // "chemin"
     const desc = normalize(description); // "titre"
 
+    // Règles prioritaires explicites
+    if (d2 === 'ordonnance juge commissaire') {
+        return 'VENTE';
+    }
+    if (d2 === 'ordonnance du president du tribunal de commerce') {
+        return 'HONORAIRES';
+    }
+
     // 🔷 Dossier GREFFE
     if (d2.includes('courrier')) {
         if (desc.includes('certificat de depot') && desc.includes('rjlj')) {
